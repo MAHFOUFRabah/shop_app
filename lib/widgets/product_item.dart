@@ -5,18 +5,18 @@ import 'package:shop_app/providers/product.dart';
 import 'package:shop_app/screens/product_detail_screen.dart';
 
 class ProductItem extends StatelessWidget {
-
   @override
   Widget build(BuildContext context) {
-    final product =Provider.of<Product>(context);
-    final cart =Provider.of<Cart>(context,listen: false);
+    final product = Provider.of<Product>(context);
+    final cart = Provider.of<Cart>(context, listen: false);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: GridTile(
         child: GestureDetector(
           onTap: () {
-            Navigator.of(context).pushNamed(ProductDetailScreen.routeName, arguments: product.id);
+            Navigator.of(context).pushNamed(ProductDetailScreen.routeName,
+                arguments: product.id);
           },
           child: Image.network(
             product.imageUrl,
@@ -27,7 +27,7 @@ class ProductItem extends StatelessWidget {
           backgroundColor: Colors.black87,
           leading: IconButton(
             icon: Icon(
-              product.isFavorite?Icons.favorite:Icons.favorite_border,
+              product.isFavorite ? Icons.favorite : Icons.favorite_border,
               color: Theme.of(context).accentColor,
             ),
             onPressed: () {
@@ -45,6 +45,14 @@ class ProductItem extends StatelessWidget {
             ),
             onPressed: () {
               cart.addItem(product.id, product.price, product.title);
+              Scaffold.of(context).hideCurrentSnackBar();
+              Scaffold.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Added Item To Cart'),
+                  duration: Duration(seconds: 2),
+                  action: SnackBarAction(label: 'UNDO', onPressed: () {cart.removeSingleItem(product.id);},),
+                ),
+              );
             },
           ),
         ),
