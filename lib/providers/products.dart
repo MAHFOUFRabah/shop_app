@@ -1,11 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:shop_app/models/http_exception.dart';
 import 'package:shop_app/providers/product.dart';
 import 'package:http/http.dart' as http;
 
 class Products with ChangeNotifier {
   List<Product> _items = [
+    /*
     Product(
       id: 'p1',
       title: 'Red Shirt',
@@ -37,7 +40,7 @@ class Products with ChangeNotifier {
       price: 49.99,
       imageUrl:
           'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Cast-Iron-Pan.jpg/1024px-Cast-Iron-Pan.jpg',
-    ),
+    ),*/
   ];
   List<Product> get items {
     if ((_showFavoriteOnly)) {
@@ -65,40 +68,95 @@ class Products with ChangeNotifier {
     notifyListeners();
   }
   */
+  Future<void> fetchAndSetProducts() async {
+    const url =
+        'https://flutter-udemy-shop-app-57d19.firebaseio.com//products.json';
+    try {
+      final response = await http.get(url);
+      final List<Product> loadedProducts = [];
+      final extractedData = json.decode(response.body) as Map<String, dynamic>;
+      if(extractedData == null) {
+        return ;
+      }
+      extractedData.forEach((prodId, prodData) {
+        loadedProducts.add(Product(
+            id: prodId,
+            title: prodData['title'],
+            description: prodData['description'],
+            price: prodData['price'],
+            isFavorite: prodData['isFavorite'],
+            imageUrl: prodData['imageUrl']));
+      });
+      _items = loadedProducts;
+      notifyListeners();
+    } catch (error) {
+      throw (error);
+    }
+  }
 
-  void addProduct(Product product) {
-    const url = 'https://flutter-udemy-shop-app-57d19.firebaseio.com/products.json';
-    http.post(url,body: json.encode({
-      'title': product.title,
-      'description' : product.description,
-      'imageUrl': product.imageUrl,
-      'price':product.price,
-      'isFavorite' :product.isFavorite,
-    }),);
-    final newProduct = Product(
-      title: product.title,
-      description: product.description,
-      price: product.price,
-      imageUrl: product.imageUrl,
-      id: DateTime.now().toString(),
-    );
-    _items.add(newProduct);
-    //_items.insert(0, newProduct);
+  Future<void> addProduct(Product product) async {
+    const url =
+        'https://flutter-udemy-shop-app-57d19.firebaseio.com//products.json';
+    try {
+      final response = await http.post(
+        url,
+        body: json.encode({
+          'title': product.title,
+          'description': product.description,
+          'imageUrl': product.imageUrl,
+          'price': product.price,
+          'isFavorite': product.isFavorite,
+        }),
+      );
+      final newProduct = Product(
+        title: product.title,
+        description: product.description,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        id: json.decode(response.body).toString(),
+      );
+      _items.add(newProduct);
+      //_items.insert(0, newProduct);
+      notifyListeners();
+    } catch (error) {
+      print(error);
+      throw error;
+    }
+  }
+
+  Future<void> updateProduct(String id, Product newProduct) async {
+    final prodIndex = _items.indexWhere((prod) => prod.id == id);
+    if (prodIndex >= 0) {
+      final url =
+          'https://flutter-udemy-shop-app-57d19.firebaseio.com//products/${id}.json';
+      http.patch(url,
+          body: json.encode({
+            'title': newProduct.title,
+            'description': newProduct.description,
+            'imagUrl': newProduct.imageUrl,
+            'price': newProduct.price,
+          }));
+      _items[prodIndex] = newProduct;
+    } else {
+      print('....');
+    }
     notifyListeners();
   }
-  void updateProduct(String id, Product newProduct ) {
-   final prodIndex =  _items.indexWhere((prod) => prod.id == id);
-   if(prodIndex>=0) {
-     _items[prodIndex] = newProduct;
-   }
-   else {
-     print('....');
-   }
-   notifyListeners();
 
-  }
-  void deleteProduct(String id) {
+  Future<void> deleteProduct(String id) async {
+    final url =
+        'https://flutter-udemy-shop-app-57d19.firebaseio.com//products/${id}.json';
+    final existingProductIndex = _items.indexWhere((prod) => prod.id == id);
+    var existingProduct = _items[existingProductIndex];
     _items.removeWhere((prod) => prod.id == id);
     notifyListeners();
+    final response = await http.delete(url);
+
+    if (response.statusCode >= 400) {
+      _items.insert(existingProductIndex, existingProduct);
+      notifyListeners();
+      throw HttpException('Could not delete product');
+    }
+    existingProduct = null;
   }
 }
